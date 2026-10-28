@@ -1,9 +1,15 @@
 [workspace]
 resolver = "2"
-members = ["crates/notch-core", "crates/notch-app", "crates/notch-window-fallback"]
+members = ["crates/notch-core", "crates/notch-app", "crates/notch-ui", "crates/notch-window-fallback"]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
 # Mínimo cargo que entiende el Cargo.lock actual (lockfile version = 4).
 rust-version = "1.78"
+
+# Mitigación de entorno de trabajo con ~1 GB de RAM: cxx-qt-lib agota la
+# memoria si se compila con información de depuración por defecto. No cambia
+# el comportamiento en tiempo de ejecución (solo omite símbolos de debug).
+[profile.dev]
+debug = 0
