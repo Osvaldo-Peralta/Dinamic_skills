@@ -201,6 +201,21 @@ mod tests {
     }
 
     #[test]
+    fn transition_pending_is_true_only_while_delay_is_running() {
+        let (mut m, t0) = machine();
+        m.set_player_present(true, t0);
+        assert!(!m.transition_pending(), "en reposo no hay transición pendiente");
+        m.on_hover(HoverEvent::Enter, t0);
+        assert!(m.transition_pending(), "durante el retardo de entrada");
+        m.tick(t0 + Duration::from_millis(150));
+        assert!(!m.transition_pending(), "tras expandirse no queda pendiente");
+        m.on_hover(HoverEvent::Leave, t0 + Duration::from_millis(150));
+        assert!(m.transition_pending(), "durante el retardo de salida");
+        m.tick(t0 + Duration::from_millis(150 + 400));
+        assert!(!m.transition_pending(), "tras colapsar no queda pendiente");
+    }
+
+    #[test]
     fn player_disappearing_while_expanded_hides_then_resting() {
         let (mut m, t0) = machine();
         m.set_player_present(true, t0);
