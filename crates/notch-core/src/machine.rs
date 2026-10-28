@@ -93,6 +93,13 @@ impl NotchMachine {
         }
     }
 
+    /// Indica si hay una transición en curso (retardo de entrada o salida
+    /// pendiente). Sirve para que la UI active un tick periódico solo cuando
+    /// hace falta.
+    pub fn transition_pending(&self) -> bool {
+        self.pending.is_some()
+    }
+
     pub fn tick(&mut self, now: Instant) -> NotchState {
         if !self.player_present {
             self.state = NotchState::Hidden;
