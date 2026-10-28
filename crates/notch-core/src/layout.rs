@@ -7,12 +7,31 @@ use crate::{Rect, Size};
 /// `screen`, ajustada a la cuadrícula de píxeles físicos y nunca fuera de
 /// `screen`.
 pub fn compute_pill_rect(screen: Rect, pill: Size, device_pixel_ratio: f64) -> Rect {
-    todo!()
+    let dpr = if device_pixel_ratio > 0.0 {
+        device_pixel_ratio
+    } else {
+        1.0
+    };
+    let snap = |v: f64| (v * dpr).round() / dpr;
+
+    // Nunca más ancha que la pantalla.
+    let w = snap(pill.w.min(screen.w)).min(screen.w);
+    // Centrada en horizontal sobre el borde superior de `screen`.
+    let x_raw = screen.x + (screen.w - w) / 2.0;
+    let x = snap(x_raw).clamp(screen.x, screen.x + screen.w - w);
+    let y = snap(screen.y).max(screen.y);
+    let h = snap(pill.h).min(screen.y + screen.h - y);
+
+    Rect { x, y, w, h }
 }
 
 /// Región sensible al mouse según el estado: ninguna si Hidden.
 pub fn interactive_region(state: NotchState, resting: Rect, expanded: Rect) -> Option<Rect> {
-    todo!()
+    match state {
+        NotchState::Hidden => None,
+        NotchState::Resting => Some(resting),
+        NotchState::Expanded => Some(expanded),
+    }
 }
 
 #[cfg(test)]

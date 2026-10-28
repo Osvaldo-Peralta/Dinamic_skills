@@ -33,19 +33,85 @@ pub struct NotchMachine {
 
 impl NotchMachine {
     pub fn new(enter_delay: Duration, leave_delay: Duration) -> Self {
-        todo!()
+        Self {
+            enter_delay,
+            leave_delay,
+            player_present: false,
+            hovered: false,
+            state: NotchState::Hidden,
+            pending: None,
+        }
     }
 
-    pub fn set_player_present(&mut self, present: bool, now: Instant) {
-        todo!()
+    pub fn set_player_present(&mut self, present: bool, _now: Instant) {
+        if self.player_present == present {
+            return;
+        }
+        self.player_present = present;
+        self.pending = None;
+        if present {
+            self.state = NotchState::Resting;
+        } else {
+            self.state = NotchState::Hidden;
+            self.hovered = false;
+        }
     }
 
     pub fn on_hover(&mut self, ev: HoverEvent, now: Instant) {
-        todo!()
+        match ev {
+            HoverEvent::Enter => {
+                self.hovered = true;
+                if !self.player_present {
+                    return;
+                }
+                match self.state {
+                    NotchState::Resting => {
+                        self.pending = Some(Pending::Expand(now + self.enter_delay));
+                    }
+                    NotchState::Expanded => {
+                        // Reentrar durante el retardo de salida cancela el colapso.
+                        if matches!(self.pending, Some(Pending::Collapse(_))) {
+                            self.pending = None;
+                        }
+                    }
+                    NotchState::Hidden => {}
+                }
+            }
+            HoverEvent::Leave => {
+                self.hovered = false;
+                if !self.player_present {
+                    return;
+                }
+                // Un paso rápido cancela la expansión pendiente.
+                if matches!(self.pending, Some(Pending::Expand(_))) {
+                    self.pending = None;
+                    return;
+                }
+                if self.state == NotchState::Expanded {
+                    self.pending = Some(Pending::Collapse(now + self.leave_delay));
+                }
+            }
+        }
     }
 
     pub fn tick(&mut self, now: Instant) -> NotchState {
-        todo!()
+        if !self.player_present {
+            self.state = NotchState::Hidden;
+            self.pending = None;
+            return self.state;
+        }
+        match self.pending {
+            Some(Pending::Expand(deadline)) if now >= deadline && self.hovered => {
+                self.state = NotchState::Expanded;
+                self.pending = None;
+            }
+            Some(Pending::Collapse(deadline)) if now >= deadline && !self.hovered => {
+                self.state = NotchState::Resting;
+                self.pending = None;
+            }
+            _ => {}
+        }
+        self.state
     }
 }
 
