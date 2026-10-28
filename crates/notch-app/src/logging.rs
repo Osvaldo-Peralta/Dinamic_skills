@@ -13,14 +13,16 @@ pub fn init_logging_in(dir: &Path) -> io::Result<PathBuf> {
 }
 
 /// Directorio de estado estándar a partir de un lector de variables.
+/// Los valores vacíos cuentan como ausentes.
 pub fn default_log_dir_from(get: &dyn Fn(&str) -> Option<String>) -> PathBuf {
+    let present = |key: &str| get(key).filter(|v| !v.is_empty());
     if cfg!(windows) {
-        get("LOCALAPPDATA")
+        present("LOCALAPPDATA")
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("."))
-    } else if let Some(state) = get("XDG_STATE_HOME") {
+    } else if let Some(state) = present("XDG_STATE_HOME") {
         PathBuf::from(state)
-    } else if let Some(home) = get("HOME") {
+    } else if let Some(home) = present("HOME") {
         PathBuf::from(home).join(".local").join("state")
     } else {
         PathBuf::from(".")
@@ -34,7 +36,7 @@ pub fn default_log_dir() -> PathBuf {
 }
 
 fn env_path(key: &str) -> Option<String> {
-    std::env::var(key).ok()
+    std::env::var(key).ok().filter(|v| !v.is_empty())
 }
 
 #[cfg(test)]

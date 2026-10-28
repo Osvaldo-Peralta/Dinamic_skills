@@ -13,20 +13,24 @@ pub struct SelectError;
 pub fn detect_env_from(vars: &HashMap<String, String>, os: Os, has_layer_shell: bool) -> EnvInfo {
     let session = match os {
         Os::Windows => Session::Unknown,
-        Os::Linux => match vars.get("XDG_SESSION_TYPE").map(String::as_str) {
-            Some("x11") => Session::X11,
-            Some("wayland") => Session::Wayland,
-            // Ausente o con valor no reconocido: se mira el display activo.
-            _ => {
-                if vars.contains_key("WAYLAND_DISPLAY") {
-                    Session::Wayland
-                } else if vars.contains_key("DISPLAY") {
-                    Session::X11
-                } else {
-                    Session::Unknown
+        Os::Linux => {
+            // Una variable con valor vacío cuenta como ausente.
+            let present = |key: &str| vars.get(key).map(String::as_str).filter(|v| !v.is_empty());
+            match present("XDG_SESSION_TYPE") {
+                Some("x11") => Session::X11,
+                Some("wayland") => Session::Wayland,
+                // Ausente o con valor no reconocido: se mira el display activo.
+                _ => {
+                    if present("WAYLAND_DISPLAY").is_some() {
+                        Session::Wayland
+                    } else if present("DISPLAY").is_some() {
+                        Session::X11
+                    } else {
+                        Session::Unknown
+                    }
                 }
             }
-        },
+        }
     };
     EnvInfo {
         os,
