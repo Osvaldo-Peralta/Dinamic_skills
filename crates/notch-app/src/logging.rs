@@ -56,6 +56,20 @@ mod tests {
         assert_eq!(dir, PathBuf::from("/home/ana/.local/state"));
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn default_log_dir_keeps_non_utf8_xdg_state_home() {
+        use std::os::unix::ffi::OsStringExt;
+        let raw = b"/tmp/xdg\xff".to_vec();
+        let expected = PathBuf::from(OsString::from_vec(raw.clone()));
+        let reader = |key: &str| match key {
+            "XDG_STATE_HOME" => Some(OsString::from_vec(raw.clone())),
+            _ => None,
+        };
+        let dir = default_log_dir_from(&reader);
+        assert_eq!(dir, expected, "la ruta no UTF-8 debe conservarse byte a byte");
+    }
+
     #[test]
     fn init_logging_writes_file() {
         let dir = std::env::temp_dir().join("notch-test-init_logging_writes_file");

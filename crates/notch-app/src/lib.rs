@@ -14,3 +14,25 @@ pub fn detect_env() -> EnvInfo {
     let has_layer_shell = false;
     notch_core::select::detect_env_from(&vars, os, has_layer_shell)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ffi::OsString;
+
+    #[cfg(unix)]
+    #[test]
+    fn collect_vars_does_not_panic_on_non_utf8_value() {
+        use std::os::unix::ffi::OsStringExt;
+        let input = vec![(
+            OsString::from("CLAVE"),
+            OsString::from_vec(vec![0xFFu8, 0xFE]),
+        )];
+        let vars = collect_vars(input);
+        assert_eq!(
+            vars.get("CLAVE").map(String::as_str),
+            Some("\u{FFFD}\u{FFFD}"),
+            "el valor no UTF-8 debe convertirse con to_string_lossy, sin pánico"
+        );
+    }
+}
