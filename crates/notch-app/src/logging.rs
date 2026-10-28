@@ -1,5 +1,6 @@
 //! Archivo de log en el directorio de estado estándar del SO.
 
+use std::ffi::OsString;
 use std::fs::OpenOptions;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -13,8 +14,8 @@ pub fn init_logging_in(dir: &Path) -> io::Result<PathBuf> {
 }
 
 /// Directorio de estado estándar a partir de un lector de variables.
-/// Los valores vacíos cuentan como ausentes.
-pub fn default_log_dir_from(get: &dyn Fn(&str) -> Option<String>) -> PathBuf {
+/// Los valores vacíos cuentan como ausentes; las rutas no UTF-8 se conservan.
+pub fn default_log_dir_from(get: &dyn Fn(&str) -> Option<OsString>) -> PathBuf {
     let present = |key: &str| get(key).filter(|v| !v.is_empty());
     if cfg!(windows) {
         present("LOCALAPPDATA")
@@ -35,8 +36,8 @@ pub fn default_log_dir() -> PathBuf {
     default_log_dir_from(&env_path)
 }
 
-fn env_path(key: &str) -> Option<String> {
-    std::env::var(key).ok().filter(|v| !v.is_empty())
+fn env_path(key: &str) -> Option<OsString> {
+    std::env::var_os(key).filter(|v| !v.is_empty())
 }
 
 #[cfg(test)]
@@ -48,8 +49,8 @@ mod tests {
     #[test]
     fn default_log_dir_ignores_empty_xdg_state_home() {
         let reader = |key: &str| match key {
-            "XDG_STATE_HOME" => Some(String::new()),
-            "HOME" => Some("/home/ana".to_string()),
+            "XDG_STATE_HOME" => Some(OsString::new()),
+            "HOME" => Some(OsString::from("/home/ana")),
             _ => None,
         };
         let dir = default_log_dir_from(&reader);

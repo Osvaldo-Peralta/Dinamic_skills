@@ -3,12 +3,29 @@
 pub mod logging;
 
 use std::collections::HashMap;
+use std::ffi::OsString;
 
 use notch_core::backend::{EnvInfo, Os};
 
+/// Convierte variables crudas del entorno a texto sin paniquear ante valores
+/// no UTF-8 (pérdida aceptable: solo se usan para detectar la sesión).
+pub fn collect_vars<I>(iter: I) -> HashMap<String, String>
+where
+    I: IntoIterator<Item = (OsString, OsString)>,
+{
+    iter.into_iter()
+        .map(|(k, v)| {
+            (
+                k.to_string_lossy().into_owned(),
+                v.to_string_lossy().into_owned(),
+            )
+        })
+        .collect()
+}
+
 /// Detecta el entorno real del proceso (variables y SO en ejecución).
 pub fn detect_env() -> EnvInfo {
-    let vars: HashMap<String, String> = std::env::vars().collect();
+    let vars = collect_vars(std::env::vars_os());
     let os = if cfg!(windows) { Os::Windows } else { Os::Linux };
     // La detección real de layer-shell llega en la Tarea 5; por ahora siempre false.
     let has_layer_shell = false;
