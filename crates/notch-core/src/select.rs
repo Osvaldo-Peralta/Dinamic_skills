@@ -11,7 +11,42 @@ pub struct SelectError;
 
 /// Construye `EnvInfo` a partir de variables de entorno simuladas.
 pub fn detect_env_from(vars: &HashMap<String, String>, os: Os, has_layer_shell: bool) -> EnvInfo {
-    todo!()
+    let session = match os {
+        Os::Windows => Session::Unknown,
+        Os::Linux => match vars.get("XDG_SESSION_TYPE").map(String::as_str) {
+            Some("x11") => Session::X11,
+            Some("wayland") => Session::Wayland,
+            // Ausente o con valor no reconocido: se mira el display activo.
+            _ => {
+                if vars.contains_key("WAYLAND_DISPLAY") {
+                    Session::Wayland
+                } else if vars.contains_key("DISPLAY") {
+                    Session::X11
+                } else {
+                    Session::Unknown
+                }
+            }
+        },
+    };
+    EnvInfo {
+        os,
+        session,
+        has_layer_shell,
+    }
+}
+
+/// Lista de preferencia de backends según el entorno (spec §7).
+fn preference(env: &EnvInfo) -> Vec<BackendId> {
+    match env.os {
+        Os::Windows => vec![BackendId::Win32, BackendId::Fallback],
+        Os::Linux => match env.session {
+            Session::X11 => vec![BackendId::X11, BackendId::Fallback],
+            Session::Wayland if env.has_layer_shell => {
+                vec![BackendId::WaylandLayerShell, BackendId::Fallback]
+            }
+            Session::Wayland | Session::Unknown => vec![BackendId::Fallback],
+        },
+    }
 }
 
 /// Elige y configura el primer backend utilizable según el entorno.
@@ -23,7 +58,28 @@ pub fn select_backend(
     rect: Rect,
     log: &mut dyn FnMut(&str),
 ) -> Result<BackendId, SelectError> {
-    todo!()
+    let mut backends = backends;
+    for id in preference(env) {
+        let Some(idx) = backends.iter().position(|b| b.id() == id) else {
+            log(&format!("backend {id:?} no registrado; se prueba el siguiente"));
+            continue;
+        };
+        let backend = &mut backends[idx];
+        match backend.probe(env) {
+            Probe::Available => {}
+            Probe::Unavailable(reason) => {
+                log(&format!("backend {id:?} no disponible: {reason}; se prueba el siguiente"));
+                continue;
+            }
+        }
+        match backend.configure(win, rect) {
+            Ok(()) => return Ok(id),
+            Err(err) => log(&format!(
+                "backend {id:?} falló al configurar la ventana: {err:?}; se prueba el siguiente"
+            )),
+        }
+    }
+    Err(SelectError)
 }
 
 #[cfg(test)]

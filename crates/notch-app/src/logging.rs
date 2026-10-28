@@ -1,23 +1,39 @@
 //! Archivo de log en el directorio de estado estándar del SO.
 
-use std::fs::{self, OpenOptions};
+use std::fs::OpenOptions;
 use std::io;
 use std::path::{Path, PathBuf};
 
 /// Crea el directorio y el archivo de log si no existen; devuelve su ruta.
 pub fn init_logging_in(dir: &Path) -> io::Result<PathBuf> {
-    todo!()
+    std::fs::create_dir_all(dir)?;
+    let path = dir.join("notch.log");
+    OpenOptions::new().create(true).append(true).open(&path)?;
+    Ok(path)
 }
 
 /// Directorio de estado estándar: XDG_STATE_HOME o ~/.local/state en Linux,
 /// %LOCALAPPDATA% en Windows.
 pub fn default_log_dir() -> PathBuf {
-    todo!()
+    if cfg!(windows) {
+        env_path("LOCALAPPDATA").unwrap_or_else(|| PathBuf::from("."))
+    } else if let Some(state) = env_path("XDG_STATE_HOME") {
+        state
+    } else if let Some(home) = env_path("HOME") {
+        home.join(".local").join("state")
+    } else {
+        PathBuf::from(".")
+    }
+}
+
+fn env_path(key: &str) -> Option<PathBuf> {
+    std::env::var_os(key).map(PathBuf::from)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
     use std::io::Write;
 
     #[test]
