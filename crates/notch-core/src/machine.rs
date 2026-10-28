@@ -192,4 +192,28 @@ mod tests {
         m.set_player_present(true, t0);
         assert_eq!(m.tick(t0), NotchState::Resting);
     }
+
+    #[test]
+    fn hover_ignored_while_no_player() {
+        let (mut m, t0) = machine();
+        m.on_hover(HoverEvent::Enter, t0);
+        m.set_player_present(true, t0);
+        assert_eq!(m.tick(t0 + Duration::from_secs(1)), NotchState::Resting);
+    }
+
+    #[test]
+    fn player_disappearing_while_expanded_hides_then_resting() {
+        let (mut m, t0) = machine();
+        m.set_player_present(true, t0);
+        m.on_hover(HoverEvent::Enter, t0);
+        let t1 = t0 + Duration::from_millis(150);
+        assert_eq!(m.tick(t1), NotchState::Expanded);
+        m.set_player_present(false, t1);
+        assert_eq!(m.tick(t1), NotchState::Hidden);
+        m.set_player_present(true, t1 + Duration::from_millis(100));
+        assert_eq!(
+            m.tick(t1 + Duration::from_millis(100)),
+            NotchState::Resting
+        );
+    }
 }

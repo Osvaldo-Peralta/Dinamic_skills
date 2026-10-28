@@ -82,6 +82,20 @@ mod tests {
     }
 
     #[test]
+    fn pill_stays_inside_screen_on_both_edges() {
+        let screen = Rect {
+            x: 100.0,
+            y: 0.0,
+            w: 200.0,
+            h: 600.0,
+        };
+        let pill = Size { w: 320.0, h: 44.0 };
+        let r = compute_pill_rect(screen, pill, 2.0);
+        assert!(r.x >= screen.x);
+        assert!(r.x + r.w <= screen.x + screen.w);
+    }
+
+    #[test]
     fn interactive_region_matches_state() {
         let resting = Rect {
             x: 1.0,
