@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/notch-core"]
+members = ["crates/notch-core", "crates/notch-app"]
 
 [workspace.package]
 version = "0.1.0"
