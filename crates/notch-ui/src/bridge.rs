@@ -66,9 +66,15 @@ pub mod qobject {
     impl cxx_qt::Constructor<()> for NotchBridge {}
 }
 
-use notch_core::machine::NotchState;
+use std::time::{Duration, Instant};
+
+use notch_core::machine::{HoverEvent, NotchMachine, NotchState};
 
 use crate::events::{emit, UiEvent};
+
+/// Retardos iniciales de transición (spec §Transiciones, ajustables).
+const ENTER_DELAY: Duration = Duration::from_millis(150);
+const LEAVE_DELAY: Duration = Duration::from_millis(400);
 
 /// Parte Rust del QObject. `machine` se rellena en `Initialize`.
 pub struct NotchBridgeRust {
@@ -77,6 +83,7 @@ pub struct NotchBridgeRust {
     artist_text: QString,
     transition_pending: bool,
     frame_count: i32,
+    machine: Option<NotchMachine>,
     last_state: NotchState,
 }
 
@@ -88,6 +95,7 @@ impl Default for NotchBridgeRust {
             artist_text: QString::default(),
             transition_pending: false,
             frame_count: 0,
+            machine: None,
             last_state: NotchState::Hidden,
         }
     }
@@ -116,20 +124,51 @@ fn publish_state(mut self_: Pin<&mut qobject::NotchBridge>, state: NotchState, p
     }
 }
 
+/// Datos falsos del reproductor (Hito 1): presentes salvo
+/// `NOTCH_FAKE_PLAYER=0` (entonces el notch permanece oculto).
+fn fake_player_present() -> bool {
+    std::env::var("NOTCH_FAKE_PLAYER")
+        .map(|v| v.trim() != "0")
+        .unwrap_or(true)
+}
+
 impl cxx_qt::Initialize for qobject::NotchBridge {
-    fn initialize(self: Pin<&mut Self>) {
-        // TODO(Tarea 3, paso siguiente): integrar NotchMachine y datos falsos.
-        publish_state(self, NotchState::Hidden, false);
+    fn initialize(mut self: Pin<&mut Self>) {
+        let now = Instant::now();
+        let mut machine = NotchMachine::new(ENTER_DELAY, LEAVE_DELAY);
+        machine.set_player_present(fake_player_present(), now);
+        let state = machine.tick(now);
+        self.as_mut().rust_mut().machine = Some(machine);
+        self.as_mut().set_title_text(QString::from("Título de ejemplo"));
+        self.as_mut().set_artist_text(QString::from("Artista de ejemplo"));
+        publish_state(self, state, false);
     }
 }
 
 impl qobject::NotchBridge {
-    pub fn on_hover(self: Pin<&mut Self>, _enter: bool) {
-        // TODO(Tarea 3, paso siguiente): alimentar NotchMachine.
+    pub fn on_hover(mut self: Pin<&mut Self>, enter: bool) {
+        let now = Instant::now();
+        let Some((state, pending)) = self.as_mut().rust_mut().machine.as_mut().map(|machine| {
+            machine.on_hover(if enter { HoverEvent::Enter } else { HoverEvent::Leave }, now);
+            (machine.tick(now), machine.transition_pending())
+        }) else {
+            return;
+        };
+        publish_state(self, state, pending);
     }
 
-    pub fn tick(self: Pin<&mut Self>) {
-        // TODO(Tarea 3, paso siguiente): NotchMachine::tick.
+    pub fn tick(mut self: Pin<&mut Self>) {
+        let now = Instant::now();
+        let Some((state, pending)) = self
+            .as_mut()
+            .rust_mut()
+            .machine
+            .as_mut()
+            .map(|machine| (machine.tick(now), machine.transition_pending()))
+        else {
+            return;
+        };
+        publish_state(self, state, pending);
     }
 
     pub fn bump_frame(mut self: Pin<&mut Self>) {
