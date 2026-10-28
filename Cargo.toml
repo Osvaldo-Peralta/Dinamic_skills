@@ -5,3 +5,5 @@ members = ["crates/notch-core"]
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
+# Mínimo cargo que entiende el Cargo.lock actual (lockfile version = 4).
+rust-version = "1.78"

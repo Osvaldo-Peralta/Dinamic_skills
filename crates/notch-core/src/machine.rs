@@ -58,12 +58,14 @@ impl NotchMachine {
     }
 
     pub fn on_hover(&mut self, ev: HoverEvent, now: Instant) {
+        // Sin reproductor no hay notch: los eventos se ignoran por completo,
+        // sin tocar `hovered`.
+        if !self.player_present {
+            return;
+        }
         match ev {
             HoverEvent::Enter => {
                 self.hovered = true;
-                if !self.player_present {
-                    return;
-                }
                 match self.state {
                     NotchState::Resting => {
                         self.pending = Some(Pending::Expand(now + self.enter_delay));
@@ -79,9 +81,6 @@ impl NotchMachine {
             }
             HoverEvent::Leave => {
                 self.hovered = false;
-                if !self.player_present {
-                    return;
-                }
                 // Un paso rápido cancela la expansión pendiente.
                 if matches!(self.pending, Some(Pending::Expand(_))) {
                     self.pending = None;
