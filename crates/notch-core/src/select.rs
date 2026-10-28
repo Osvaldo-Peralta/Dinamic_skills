@@ -185,6 +185,26 @@ mod tests {
     }
 
     #[test]
+    fn detect_empty_display_vars_are_absent() {
+        let env = detect_env_from(
+            &vars(&[("DISPLAY", ""), ("WAYLAND_DISPLAY", "")]),
+            Os::Linux,
+            false,
+        );
+        assert_eq!(env.session, Session::Unknown);
+    }
+
+    #[test]
+    fn detect_unrecognized_session_type_falls_back_to_display_vars() {
+        let env = detect_env_from(
+            &vars(&[("XDG_SESSION_TYPE", "tty"), ("DISPLAY", ":0")]),
+            Os::Linux,
+            false,
+        );
+        assert_eq!(env.session, Session::X11);
+    }
+
+    #[test]
     fn select_x11_session_prefers_x11() {
         let env = EnvInfo {
             os: Os::Linux,
@@ -286,6 +306,51 @@ mod tests {
         assert!(
             logs.iter().any(|l| l.contains("X11")),
             "el log debe contener el motivo del descarte de X11: {logs:?}"
+        );
+    }
+
+    #[test]
+    fn select_wayland_with_layer_shell_prefers_layer_shell() {
+        let env = EnvInfo {
+            os: Os::Linux,
+            session: Session::Wayland,
+            has_layer_shell: true,
+        };
+        let mut win = WindowHandle::new(1);
+        let mut logs = Vec::new();
+        let got = select_backend(
+            &env,
+            vec![
+                FakeBackend::ok(BackendId::Fallback),
+                FakeBackend::ok(BackendId::WaylandLayerShell),
+            ],
+            &mut win,
+            rect(),
+            &mut |s| logs.push(s.to_string()),
+        );
+        assert_eq!(got, Ok(BackendId::WaylandLayerShell));
+    }
+
+    #[test]
+    fn select_skips_unregistered_backend_and_logs() {
+        let env = EnvInfo {
+            os: Os::Linux,
+            session: Session::X11,
+            has_layer_shell: false,
+        };
+        let mut win = WindowHandle::new(1);
+        let mut logs = Vec::new();
+        let got = select_backend(
+            &env,
+            vec![FakeBackend::ok(BackendId::Fallback)],
+            &mut win,
+            rect(),
+            &mut |s| logs.push(s.to_string()),
+        );
+        assert_eq!(got, Ok(BackendId::Fallback));
+        assert!(
+            logs.iter().any(|l| l.contains("X11")),
+            "debe registrar el backend no registrado: {logs:?}"
         );
     }
 

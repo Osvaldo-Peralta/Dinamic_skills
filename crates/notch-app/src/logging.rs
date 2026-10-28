@@ -12,22 +12,29 @@ pub fn init_logging_in(dir: &Path) -> io::Result<PathBuf> {
     Ok(path)
 }
 
-/// Directorio de estado estándar: XDG_STATE_HOME o ~/.local/state en Linux,
-/// %LOCALAPPDATA% en Windows.
-pub fn default_log_dir() -> PathBuf {
+/// Directorio de estado estándar a partir de un lector de variables.
+pub fn default_log_dir_from(get: &dyn Fn(&str) -> Option<String>) -> PathBuf {
     if cfg!(windows) {
-        env_path("LOCALAPPDATA").unwrap_or_else(|| PathBuf::from("."))
-    } else if let Some(state) = env_path("XDG_STATE_HOME") {
-        state
-    } else if let Some(home) = env_path("HOME") {
-        home.join(".local").join("state")
+        get("LOCALAPPDATA")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("."))
+    } else if let Some(state) = get("XDG_STATE_HOME") {
+        PathBuf::from(state)
+    } else if let Some(home) = get("HOME") {
+        PathBuf::from(home).join(".local").join("state")
     } else {
         PathBuf::from(".")
     }
 }
 
-fn env_path(key: &str) -> Option<PathBuf> {
-    std::env::var_os(key).map(PathBuf::from)
+/// Directorio de estado estándar: XDG_STATE_HOME o ~/.local/state en Linux,
+/// %LOCALAPPDATA% en Windows.
+pub fn default_log_dir() -> PathBuf {
+    default_log_dir_from(&env_path)
+}
+
+fn env_path(key: &str) -> Option<String> {
+    std::env::var(key).ok()
 }
 
 #[cfg(test)]
@@ -35,6 +42,17 @@ mod tests {
     use super::*;
     use std::fs;
     use std::io::Write;
+
+    #[test]
+    fn default_log_dir_ignores_empty_xdg_state_home() {
+        let reader = |key: &str| match key {
+            "XDG_STATE_HOME" => Some(String::new()),
+            "HOME" => Some("/home/ana".to_string()),
+            _ => None,
+        };
+        let dir = default_log_dir_from(&reader);
+        assert_eq!(dir, PathBuf::from("/home/ana/.local/state"));
+    }
 
     #[test]
     fn init_logging_writes_file() {
