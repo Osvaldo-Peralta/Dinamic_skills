@@ -1,0 +1,8 @@
+[package]
+name = "notch-window-fallback"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+notch-core = { path = "../notch-core" }
