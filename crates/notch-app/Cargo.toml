@@ -1,0 +1,8 @@
+[package]
+name = "notch-app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+notch-core = { path = "../notch-core" }

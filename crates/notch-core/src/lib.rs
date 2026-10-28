@@ -4,6 +4,7 @@
 pub mod backend;
 pub mod layout;
 pub mod machine;
+pub mod select;
 
 /// Tamaño en píxeles lógicos.
 #[derive(Debug, Clone, Copy, PartialEq)]

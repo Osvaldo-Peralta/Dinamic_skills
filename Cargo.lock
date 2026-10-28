@@ -3,5 +3,12 @@
 version = 4
 
 [[package]]
+name = "notch-app"
+version = "0.1.0"
+dependencies = [
+ "notch-core",
+]
+
+[[package]]
 name = "notch-core"
 version = "0.1.0"
