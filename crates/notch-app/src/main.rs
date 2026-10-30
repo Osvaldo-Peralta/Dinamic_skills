@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QUrl};
-use notch_core::backend::{BackendId, EnvInfo, WindowBackend, WindowHandle};
+use notch_core::backend::{EnvInfo, WindowBackend, WindowHandle};
 use notch_core::layout::{compute_pill_rect, interactive_region};
 use notch_core::machine::NotchState;
 use notch_core::select::select_backend;
@@ -21,11 +21,11 @@ use notch_window_fallback::FallbackBackend;
 
 /// Estado de la aplicación que usa el listener de eventos de la UI.
 struct AppState {
-    /// Instancia propia para actualizaciones posteriores a la selección
-    /// (`select_backend` consume las suyas).
-    backend: FallbackBackend,
+    /// Backend elegido por `select_backend`, conservado aquí para las
+    /// actualizaciones posteriores (Tarea 3b: antes se creaba una instancia
+    /// aparte de `FallbackBackend` y `select_backend` consumía las suyas).
+    backend: Option<Box<dyn WindowBackend>>,
     handle: WindowHandle,
-    selected: Option<BackendId>,
     state: NotchState,
     log: Option<PathBuf>,
 }
@@ -56,7 +56,7 @@ impl AppState {
         // La ventana ocupa la envolvente expandida (decisión documentada en el
         // reporte); la píldora en reposo se dibuja centrada dentro.
         let win_rect = compute_pill_rect(screen, EXPANDED_SIZE, dpr);
-        if self.selected.is_none() {
+        if self.backend.is_none() {
             let mut select_log: Vec<String> = Vec::new();
             let chosen = select_backend(
                 env,
@@ -69,16 +69,21 @@ impl AppState {
                 self.log_line(msg);
             }
             match chosen {
-                Ok(id) => {
-                    self.selected = Some(id);
-                    self.log_line(&format!("backend activo: {id:?}"));
+                Ok(chosen) => {
+                    self.log_line(&format!("backend activo: {:?}", chosen.id()));
+                    self.backend = Some(chosen);
                 }
                 Err(_) => {
                     self.log_line("no se pudo seleccionar ningún backend");
                     return;
                 }
             }
-        } else if let Err(err) = self.backend.configure(&mut self.handle, win_rect) {
+        } else if let Err(err) = self
+            .backend
+            .as_mut()
+            .expect("backend ya seleccionado")
+            .configure(&mut self.handle, win_rect)
+        {
             self.log_line(&format!("error al reposicionar la ventana: {err:?}"));
         }
         self.apply_region(screen, win_rect, dpr);
@@ -100,14 +105,17 @@ impl AppState {
             h: win_rect.h,
         };
         let region = interactive_region(self.state, resting, expanded);
-        if let Err(err) = self.backend.set_interactive_region(&mut self.handle, region) {
+        let Some(backend) = self.backend.as_mut() else {
+            return;
+        };
+        if let Err(err) = backend.set_interactive_region(&mut self.handle, region) {
             self.log_line(&format!("error al actualizar la región interactiva: {err:?}"));
         }
     }
 
     fn on_state_changed(&mut self, state: NotchState) {
         self.state = state;
-        if self.selected.is_none() {
+        if self.backend.is_none() {
             return;
         }
         if let Some((screen, dpr)) = notch_ui::registry::primary_screen() {
@@ -129,9 +137,8 @@ fn main() -> ExitCode {
     };
     let env = notch_app::detect_env();
     let mut state = AppState {
-        backend: FallbackBackend::new(),
+        backend: None,
         handle: WindowHandle::new(0),
-        selected: None,
         state: NotchState::Hidden,
         log,
     };
@@ -160,7 +167,7 @@ fn main() -> ExitCode {
         }
         UiEvent::StateChanged(next) => state.on_state_changed(next),
         UiEvent::ScreenChanged => {
-            if state.selected.is_some() {
+            if state.backend.is_some() {
                 state.reposition(&env);
             }
         }

@@ -57,7 +57,10 @@ pub enum BackendError {
     Failed(String),
 }
 
-pub trait WindowBackend {
+/// Contrato de un backend de ventana. `Send` es necesario porque el
+/// ensamblador (notch-app) conserva el backend elegido dentro del listener de
+/// eventos de la UI, cuyo tipo exige `Send` (Tarea 3b).
+pub trait WindowBackend: Send {
     fn id(&self) -> BackendId;
     fn probe(&self, env: &EnvInfo) -> Probe;
     fn configure(&mut self, win: &mut WindowHandle, rect: Rect) -> Result<(), BackendError>;

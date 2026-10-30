@@ -54,30 +54,32 @@ fn preference(env: &EnvInfo) -> Vec<BackendId> {
 }
 
 /// Elige y configura el primer backend utilizable según el entorno.
-/// Registra en `log` el motivo de cada descarte.
+/// Registra en `log` el motivo de cada descarte. En caso de éxito devuelve el
+/// backend elegido (ya configurado), para que quien llama lo conserve y lo use
+/// en actualizaciones posteriores (Tarea 3b: antes solo devolvía el `BackendId`
+/// y los backends se consumían).
 pub fn select_backend(
     env: &EnvInfo,
     backends: Vec<Box<dyn WindowBackend>>,
     win: &mut WindowHandle,
     rect: Rect,
     log: &mut dyn FnMut(&str),
-) -> Result<BackendId, SelectError> {
+) -> Result<Box<dyn WindowBackend>, SelectError> {
     let mut backends = backends;
     for id in preference(env) {
         let Some(idx) = backends.iter().position(|b| b.id() == id) else {
             log(&format!("backend {id:?} no registrado; se prueba el siguiente"));
             continue;
         };
-        let backend = &mut backends[idx];
-        match backend.probe(env) {
+        match backends[idx].probe(env) {
             Probe::Available => {}
             Probe::Unavailable(reason) => {
                 log(&format!("backend {id:?} no disponible: {reason}; se prueba el siguiente"));
                 continue;
             }
         }
-        match backend.configure(win, rect) {
-            Ok(()) => return Ok(id),
+        match backends[idx].configure(win, rect) {
+            Ok(()) => return Ok(backends.remove(idx)),
             Err(err) => log(&format!(
                 "backend {id:?} falló al configurar la ventana: {err:?}; se prueba el siguiente"
             )),
