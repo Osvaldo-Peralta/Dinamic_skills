@@ -16,14 +16,14 @@ fn lock() -> MutexGuard<'static, Vec<u64>> {
     WINDOWS.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-/// Registra el QWindow que aloja al QObject del bridge y aplica la
-/// configuración del backend de respaldo. Devuelve su `WindowHandle`.
+/// Registra el QWindow que aloja al QObject del bridge y devuelve su
+/// `WindowHandle`. Desde la Tarea 3b solo registra: la aplicación de los
+/// flags del respaldo es responsabilidad de `FallbackBackend::configure`.
 pub fn register_window(bridge_qobject_ptr: u64) -> Option<WindowHandle> {
     let win = ffi::notch_find_host_window(bridge_qobject_ptr);
     if win == 0 {
         return None;
     }
-    ffi::notch_configure_fallback(win);
     let mut reg = lock();
     if !reg.contains(&win) {
         reg.push(win);
@@ -48,6 +48,13 @@ pub fn first_window() -> Option<WindowHandle> {
 
 pub fn set_geometry(handle: WindowHandle, rect: Rect) -> Option<()> {
     with_window(handle, |win| ffi::notch_set_geometry(win, rect.x, rect.y, rect.w, rect.h))
+}
+
+/// Aplica los flags del respaldo (sin bordes, siempre encima, sin aceptar
+/// foco). Tarea 3b: se movió desde `register_window` a
+/// `FallbackBackend::configure`; el registro solo expone la fachada segura.
+pub fn configure_fallback(handle: WindowHandle) -> Option<()> {
+    with_window(handle, |win| ffi::notch_configure_fallback(win))
 }
 
 pub fn apply_mask(handle: WindowHandle, rect: Rect) -> Option<()> {

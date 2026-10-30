@@ -37,6 +37,10 @@ impl WindowBackend for FallbackBackend {
         // Adopta la única ventana QML registrada (la crea Notch.qml al cargar).
         let handle = registry::first_window()
             .ok_or_else(|| BackendError::Failed("no hay ninguna ventana QML registrada".into()))?;
+        // Los flags del respaldo (sin bordes, siempre encima, sin aceptar
+        // foco) los aplica este backend desde la Tarea 3b; antes los aplicaba
+        // `registry::register_window` al registrar.
+        registry::configure_fallback(handle).ok_or_else(|| invalid_handle(&handle))?;
         registry::set_geometry(handle, rect).ok_or_else(|| invalid_handle(&handle))?;
         *win = handle;
         Ok(())
