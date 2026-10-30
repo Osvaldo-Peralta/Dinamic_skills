@@ -224,7 +224,7 @@ mod tests {
             rect(),
             &mut |s| logs.push(s.to_string()),
         );
-        assert_eq!(got, Ok(BackendId::X11));
+        assert_eq!(got.map(|b| b.id()), Ok(BackendId::X11));
     }
 
     #[test]
@@ -246,7 +246,7 @@ mod tests {
             rect(),
             &mut |s| logs.push(s.to_string()),
         );
-        assert_eq!(got, Ok(BackendId::Fallback));
+        assert_eq!(got.map(|b| b.id()), Ok(BackendId::Fallback));
     }
 
     #[test]
@@ -265,7 +265,7 @@ mod tests {
             rect(),
             &mut |s| logs.push(s.to_string()),
         );
-        assert_eq!(got, Ok(BackendId::Win32));
+        assert_eq!(got.map(|b| b.id()), Ok(BackendId::Win32));
     }
 
     #[test]
@@ -284,7 +284,7 @@ mod tests {
             rect(),
             &mut |s| logs.push(s.to_string()),
         );
-        assert_eq!(got, Ok(BackendId::Fallback));
+        assert_eq!(got.map(|b| b.id()), Ok(BackendId::Fallback));
     }
 
     #[test]
@@ -306,7 +306,7 @@ mod tests {
             rect(),
             &mut |s| logs.push(s.to_string()),
         );
-        assert_eq!(got, Ok(BackendId::Fallback));
+        assert_eq!(got.map(|b| b.id()), Ok(BackendId::Fallback));
         assert!(
             logs.iter().any(|l| l.contains("X11")),
             "el log debe contener el motivo del descarte de X11: {logs:?}"
@@ -332,7 +332,7 @@ mod tests {
             rect(),
             &mut |s| logs.push(s.to_string()),
         );
-        assert_eq!(got, Ok(BackendId::WaylandLayerShell));
+        assert_eq!(got.map(|b| b.id()), Ok(BackendId::WaylandLayerShell));
     }
 
     #[test]
@@ -351,7 +351,7 @@ mod tests {
             rect(),
             &mut |s| logs.push(s.to_string()),
         );
-        assert_eq!(got, Ok(BackendId::Fallback));
+        assert_eq!(got.map(|b| b.id()), Ok(BackendId::Fallback));
         assert!(
             logs.iter().any(|l| l.contains("X11")),
             "debe registrar el backend no registrado: {logs:?}"
@@ -377,7 +377,7 @@ mod tests {
             rect(),
             &mut |s| logs.push(s.to_string()),
         );
-        assert_eq!(got, Err(SelectError));
+        assert_eq!(got.map(|b| b.id()), Err(SelectError));
         assert_eq!(logs.len(), 2, "cada descarte debe registrarse: {logs:?}");
     }
 }
