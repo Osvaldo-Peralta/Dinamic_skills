@@ -1,9 +1,13 @@
 [workspace]
 resolver = "2"
-members = ["crates/notch-core", "crates/notch-app"]
+members = ["crates/notch-core", "crates/notch-app", "crates/notch-ui", "crates/notch-window-fallback"]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-# Mínimo cargo que entiende el Cargo.lock actual (lockfile version = 4).
-rust-version = "1.78"
+# MSRV del workspace (Tarea 3b): 1.88.
+# Nota: en máquinas con poca RAM (~1 GB) compilar cxx-qt-lib con la
+# información de depuración por defecto puede agotar la memoria; en ese caso
+# usar CARGO_PROFILE_DEV_DEBUG=0 en el entorno (ver docs/build-cxx-qt.md).
+# El perfil ya no se fija en el repositorio.
+rust-version = "1.88"

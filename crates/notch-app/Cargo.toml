@@ -6,3 +6,9 @@ rust-version.workspace = true
 
 [dependencies]
 notch-core = { path = "../notch-core" }
+notch-ui = { path = "../notch-ui" }
+notch-window-fallback = { path = "../notch-window-fallback" }
+cxx-qt-lib = { version = "0.10", features = ["qt_gui", "qt_qml"] }
+
+[build-dependencies]
+cxx-qt-build = { version = "0.10", features = ["link_qt_object_files"] }
