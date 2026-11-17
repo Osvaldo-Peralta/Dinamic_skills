@@ -54,30 +54,32 @@ fn preference(env: &EnvInfo) -> Vec<BackendId> {
 }
 
 /// Elige y configura el primer backend utilizable según el entorno.
-/// Registra en `log` el motivo de cada descarte.
+/// Registra en `log` el motivo de cada descarte. En caso de éxito devuelve el
+/// backend elegido (ya configurado), para que quien llama lo conserve y lo use
+/// en actualizaciones posteriores (Tarea 3b: antes solo devolvía el `BackendId`
+/// y los backends se consumían).
 pub fn select_backend(
     env: &EnvInfo,
     backends: Vec<Box<dyn WindowBackend>>,
     win: &mut WindowHandle,
     rect: Rect,
     log: &mut dyn FnMut(&str),
-) -> Result<BackendId, SelectError> {
+) -> Result<Box<dyn WindowBackend>, SelectError> {
     let mut backends = backends;
     for id in preference(env) {
         let Some(idx) = backends.iter().position(|b| b.id() == id) else {
             log(&format!("backend {id:?} no registrado; se prueba el siguiente"));
             continue;
         };
-        let backend = &mut backends[idx];
-        match backend.probe(env) {
+        match backends[idx].probe(env) {
             Probe::Available => {}
             Probe::Unavailable(reason) => {
                 log(&format!("backend {id:?} no disponible: {reason}; se prueba el siguiente"));
                 continue;
             }
         }
-        match backend.configure(win, rect) {
-            Ok(()) => return Ok(id),
+        match backends[idx].configure(win, rect) {
+            Ok(()) => return Ok(backends.remove(idx)),
             Err(err) => log(&format!(
                 "backend {id:?} falló al configurar la ventana: {err:?}; se prueba el siguiente"
             )),
@@ -224,7 +226,7 @@ mod tests {
             rect(),
             &mut |s| logs.push(s.to_string()),
         );
-        assert_eq!(got, Ok(BackendId::X11));
+        assert_eq!(got.map(|b| b.id()), Ok(BackendId::X11));
     }
 
     #[test]
@@ -246,7 +248,7 @@ mod tests {
             rect(),
             &mut |s| logs.push(s.to_string()),
         );
-        assert_eq!(got, Ok(BackendId::Fallback));
+        assert_eq!(got.map(|b| b.id()), Ok(BackendId::Fallback));
     }
 
     #[test]
@@ -265,7 +267,7 @@ mod tests {
             rect(),
             &mut |s| logs.push(s.to_string()),
         );
-        assert_eq!(got, Ok(BackendId::Win32));
+        assert_eq!(got.map(|b| b.id()), Ok(BackendId::Win32));
     }
 
     #[test]
@@ -284,7 +286,7 @@ mod tests {
             rect(),
             &mut |s| logs.push(s.to_string()),
         );
-        assert_eq!(got, Ok(BackendId::Fallback));
+        assert_eq!(got.map(|b| b.id()), Ok(BackendId::Fallback));
     }
 
     #[test]
@@ -306,7 +308,7 @@ mod tests {
             rect(),
             &mut |s| logs.push(s.to_string()),
         );
-        assert_eq!(got, Ok(BackendId::Fallback));
+        assert_eq!(got.map(|b| b.id()), Ok(BackendId::Fallback));
         assert!(
             logs.iter().any(|l| l.contains("X11")),
             "el log debe contener el motivo del descarte de X11: {logs:?}"
@@ -332,7 +334,7 @@ mod tests {
             rect(),
             &mut |s| logs.push(s.to_string()),
         );
-        assert_eq!(got, Ok(BackendId::WaylandLayerShell));
+        assert_eq!(got.map(|b| b.id()), Ok(BackendId::WaylandLayerShell));
     }
 
     #[test]
@@ -351,7 +353,7 @@ mod tests {
             rect(),
             &mut |s| logs.push(s.to_string()),
         );
-        assert_eq!(got, Ok(BackendId::Fallback));
+        assert_eq!(got.map(|b| b.id()), Ok(BackendId::Fallback));
         assert!(
             logs.iter().any(|l| l.contains("X11")),
             "debe registrar el backend no registrado: {logs:?}"
@@ -377,7 +379,7 @@ mod tests {
             rect(),
             &mut |s| logs.push(s.to_string()),
         );
-        assert_eq!(got, Err(SelectError));
+        assert_eq!(got.map(|b| b.id()), Err(SelectError));
         assert_eq!(logs.len(), 2, "cada descarte debe registrarse: {logs:?}");
     }
 }

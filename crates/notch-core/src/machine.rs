@@ -93,6 +93,13 @@ impl NotchMachine {
         }
     }
 
+    /// Indica si hay una transición en curso (retardo de entrada o salida
+    /// pendiente). Sirve para que la UI active un tick periódico solo cuando
+    /// hace falta.
+    pub fn transition_pending(&self) -> bool {
+        self.pending.is_some()
+    }
+
     pub fn tick(&mut self, now: Instant) -> NotchState {
         if !self.player_present {
             self.state = NotchState::Hidden;
@@ -198,6 +205,21 @@ mod tests {
         m.on_hover(HoverEvent::Enter, t0);
         m.set_player_present(true, t0);
         assert_eq!(m.tick(t0 + Duration::from_secs(1)), NotchState::Resting);
+    }
+
+    #[test]
+    fn transition_pending_is_true_only_while_delay_is_running() {
+        let (mut m, t0) = machine();
+        m.set_player_present(true, t0);
+        assert!(!m.transition_pending(), "en reposo no hay transición pendiente");
+        m.on_hover(HoverEvent::Enter, t0);
+        assert!(m.transition_pending(), "durante el retardo de entrada");
+        m.tick(t0 + Duration::from_millis(150));
+        assert!(!m.transition_pending(), "tras expandirse no queda pendiente");
+        m.on_hover(HoverEvent::Leave, t0 + Duration::from_millis(150));
+        assert!(m.transition_pending(), "durante el retardo de salida");
+        m.tick(t0 + Duration::from_millis(150 + 400));
+        assert!(!m.transition_pending(), "tras colapsar no queda pendiente");
     }
 
     #[test]
