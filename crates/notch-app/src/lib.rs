@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::ffi::OsString;
 
 use notch_core::backend::{EnvInfo, Os};
+use notch_core::machine::NotchState;
 
 /// Convierte variables crudas del entorno a texto sin paniquear ante valores
 /// no UTF-8 (pérdida aceptable: solo se usan para detectar la sesión).
@@ -51,5 +52,40 @@ mod tests {
             Some("\u{FFFD}\u{FFFD}"),
             "el valor no UTF-8 debe convertirse con to_string_lossy, sin pánico"
         );
+    }
+
+    #[test]
+    fn defers_shrink_on_expanded_to_resting() {
+        assert!(defers_region_shrink(NotchState::Expanded, NotchState::Resting));
+    }
+
+    #[test]
+    fn no_defer_on_resting_to_expanded() {
+        assert!(!defers_region_shrink(NotchState::Resting, NotchState::Expanded));
+    }
+
+    #[test]
+    fn no_defer_on_hidden_transitions() {
+        for (prev, next) in [
+            (NotchState::Hidden, NotchState::Resting),
+            (NotchState::Resting, NotchState::Hidden),
+            (NotchState::Hidden, NotchState::Expanded),
+            (NotchState::Expanded, NotchState::Hidden),
+        ] {
+            assert!(
+                !defers_region_shrink(prev, next),
+                "{prev:?} -> {next:?} no debe diferir la región"
+            );
+        }
+    }
+
+    #[test]
+    fn no_defer_on_same_state() {
+        for state in [NotchState::Hidden, NotchState::Resting, NotchState::Expanded] {
+            assert!(
+                !defers_region_shrink(state, state),
+                "{state:?} -> {state:?} no debe diferir la región"
+            );
+        }
     }
 }
