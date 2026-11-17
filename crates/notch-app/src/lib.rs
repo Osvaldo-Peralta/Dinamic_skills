@@ -33,6 +33,12 @@ pub fn detect_env() -> EnvInfo {
     notch_core::select::detect_env_from(&vars, os, has_layer_shell)
 }
 
+/// Indica si la reducción de la región interactiva debe esperar al final de la
+/// animación de cierre (solo al colapsar: Expanded -> Resting).
+pub fn defers_region_shrink(prev: NotchState, next: NotchState) -> bool {
+    prev == NotchState::Expanded && next == NotchState::Resting
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

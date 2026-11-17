@@ -16,6 +16,8 @@ pub enum UiEvent {
     StateChanged(NotchState),
     /// Cambió el monitor (resolución, conexión o dpr).
     ScreenChanged,
+    /// Terminó la animación de cierre: la región ya puede reducirse.
+    RegionSettled,
     /// La ventana dibujó un fotograma (QML `onFrameSwapped`).
     FrameDrawn,
 }

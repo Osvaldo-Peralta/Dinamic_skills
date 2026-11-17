@@ -35,6 +35,11 @@ Window {
         onTriggered: bridge.tick()
     }
 
+    // Cierre animado: la app mantiene la máscara expandida hasta 200 ms
+    // después de entrar en reposo (la animación dura 180 ms).
+    Timer { id: settleTimer; interval: 200; repeat: false; onTriggered: bridge.regionSettled() }
+    Connections { target: bridge; function onStateChanged() { if (bridge.state === "resting") settleTimer.restart(); else settleTimer.stop() } }
+
     // Vigía del monitor: cambios de dpr o de pantalla disparan el
     // reposicionamiento en la aplicación.
     Item {

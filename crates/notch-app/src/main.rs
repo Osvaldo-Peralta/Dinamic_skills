@@ -114,7 +114,18 @@ impl AppState {
     }
 
     fn on_state_changed(&mut self, state: NotchState) {
+        let prev = self.state;
         self.state = state;
+        // Al colapsar, la animación de cierre dura 180 ms: se mantiene la
+        // región expandida hasta que QML avisa con RegionSettled.
+        if notch_app::defers_region_shrink(prev, state) {
+            return;
+        }
+        self.apply_current_region();
+    }
+
+    /// Aplica la región interactiva del estado actual en el monitor principal.
+    fn apply_current_region(&mut self) {
         if self.backend.is_none() {
             return;
         }
@@ -166,6 +177,7 @@ fn main() -> ExitCode {
             state.reposition(&env);
         }
         UiEvent::StateChanged(next) => state.on_state_changed(next),
+        UiEvent::RegionSettled => state.apply_current_region(),
         UiEvent::ScreenChanged => {
             if state.backend.is_some() {
                 state.reposition(&env);

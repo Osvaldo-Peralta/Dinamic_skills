@@ -61,6 +61,10 @@ pub mod qobject {
         #[cxx_name = "screenChanged"]
         #[qinvokable]
         fn screen_changed(self: Pin<&mut NotchBridge>);
+
+        #[cxx_name = "regionSettled"]
+        #[qinvokable]
+        fn region_settled(self: Pin<&mut NotchBridge>);
     }
 
     impl cxx_qt::Constructor<()> for NotchBridge {}
@@ -197,5 +201,9 @@ impl qobject::NotchBridge {
 
     pub fn screen_changed(self: Pin<&mut Self>) {
         emit(&UiEvent::ScreenChanged);
+    }
+
+    pub fn region_settled(self: Pin<&mut Self>) {
+        emit(&UiEvent::RegionSettled);
     }
 }
