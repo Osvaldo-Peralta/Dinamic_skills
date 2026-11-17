@@ -11,6 +11,15 @@ con rustc 1.99.1 y 1.91.1 (ver `reportes/reporte-tarea-3b.md` fuera del
 repo) capturando la línea de enlace real con un wrapper de `cc` y listando
 los miembros de los rlib con `ar t`.
 
+## 0. Requisito: el enlace necesita LLD
+
+El mecanismo de enlace de los inicializadores de cxx-qt solo está verificado con el linker LLD. Con GNU ld (bfd) o gold, `notch-app`, `idle_frames` y las pruebas de `notch-window-fallback` fallan con `undefined reference to cxx_qt_init_*`.
+- Desde Rust 1.90, rustc usa LLD por defecto en x86_64-unknown-linux-gnu. Con rustup (toolchain stable) no hay que hacer nada.
+- Un rustc empaquetado por la distribución puede no traer `rust-lld`. Comprueba con: `ls "$(rustc --print sysroot)/lib/rustlib/x86_64-unknown-linux-gnu/bin" | grep rust-lld`.
+- Para ver el linker efectivo: `cargo build -vv 2>&1 | grep -o 'fuse-ld=[a-z]*'`.
+- Para forzar LLD del sistema (instalando el paquete `lld`): `RUSTFLAGS="-C link-arg=-fuse-ld=lld" cargo build --workspace --tests`.
+- Con rustc 1.88 o 1.89 el linker por defecto es bfd: no es una versión soportada para este proyecto.
+
 ## 1. El único build script cxx-qt del workspace
 
 `crates/notch-ui/build.rs` (15 líneas) es el único build script del
@@ -187,22 +196,23 @@ el mecanismo de §2 basta y se verificó verde en clon fresco con rustc
 Si en otro entorno (p. ej. Ubuntu 24.04 + Rust 1.91.1 + Qt 6.4.2) aparece
 `undefined reference to cxx_qt_init_*`, comprobar en este orden:
 
-1. `cargo build --workspace --tests -vv`: la salida del build script de
+1. Comprobar que el linker efectivo es LLD (sección 0).
+2. `cargo build --workspace --tests -vv`: la salida del build script de
    notch-ui debe incluir `rustc-link-lib=static=notch-ui-cxxqt-generated`,
    `rustc-link-lib=static:+whole-archive=cxx-qt-call-init-crate_notch_ui` y
    `...qml_module_com_notch_ui`.
-2. `ar t target/debug/deps/libnotch_ui-*.rlib | grep -c public-initializer`
+3. `ar t target/debug/deps/libnotch_ui-*.rlib | grep -c public-initializer`
    → esperado `2`. Si es `0`, el bundling no ocurrió (toolchain o flags
    `-C` no estándar); el enlace final dependería entonces de un
    `-lnotch-ui-cxxqt-generated` que rustc ya no emite y aparecerían
    indefinidos.
-3. En la línea de enlace del target que falla deben aparecer los 4
+4. En la línea de enlace del target que falla deben aparecer los 4
    `-Wl,--whole-archive .../libcxx-qt-call-init-*.a` al principio. Si
    falta alguno, revisar que nadie sobrescriba las claves `links` de
    cxx-qt/cxx-qt-lib ni construya con features recortadas.
-4. Verificar que ningún paquete consumidor añade su propio build script
+5. Verificar que ningún paquete consumidor añade su propio build script
    cxx-qt ni emite `rustc-link-lib` manualmente (§5).
-5. `ldd $(which cc)` / `cc -v`: confirmar que `-B<sysroot>/.../bin/gcc-ld
+6. `ldd $(which cc)` / `cc -v`: confirmar que `-B<sysroot>/.../bin/gcc-ld
    -fuse-ld=lld` tiene efecto (gcc ≥ 12 en Ubuntu 24.04 respeta `-B`).
 
 ## 7. Versiones exactas del entorno de verificación (item 3)
